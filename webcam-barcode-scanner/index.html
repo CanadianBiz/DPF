@@ -20,21 +20,29 @@
     const video = document.getElementById('video');
     const resultDiv = document.getElementById('result');
     let codeReader;
-    let scanning = true;
+    let lastCode = '';
+    let lastTime = 0;
 
-    function startContinuousScan() {
+    async function startContinuousScan() {
         resultDiv.textContent = '';
-        codeReader = new ZXing.BrowserMultiFormatContinuousReader();
-        codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
-            if (result && scanning) {
-                resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + result.barcodeFormat + ')';
-                scanning = false;
-                setTimeout(() => { scanning = true; resultDiv.textContent = ''; }, 2000); // relance après 2s
+        codeReader = new ZXing.BrowserBarcodeReader();
+        await codeReader.decodeFromStream(
+            { video: video },
+            (result, err) => {
+                if (result) {
+                    // N'affiche que si le code est nouveau ou si 2s sont passées
+                    const now = Date.now();
+                    if (result.text !== lastCode || now - lastTime > 2000) {
+                        resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + result.barcodeFormat + ')';
+                        lastCode = result.text;
+                        lastTime = now;
+                    }
+                }
+                if (err && !(err instanceof ZXing.NotFoundException)) {
+                    resultDiv.textContent = 'Erreur : ' + err;
+                }
             }
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-                resultDiv.textContent = 'Erreur : ' + err;
-            }
-        });
+        );
     }
 
     window.addEventListener('DOMContentLoaded', () => {
