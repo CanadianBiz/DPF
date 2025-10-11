@@ -22,31 +22,33 @@
     let codeReader;
     let lastCode = '';
     let lastTime = 0;
+    let running = true;
 
-    async function startContinuousScan() {
-        resultDiv.textContent = '';
-        codeReader = new ZXing.BrowserBarcodeReader();
-        await codeReader.decodeFromStream(
-            { video: video },
-            (result, err) => {
-                if (result) {
-                    // N'affiche que si le code est nouveau ou si 2s sont passées
-                    const now = Date.now();
-                    if (result.text !== lastCode || now - lastTime > 2000) {
-                        resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + result.barcodeFormat + ')';
-                        lastCode = result.text;
-                        lastTime = now;
-                    }
+    async function scanLoop() {
+        if (!running) return;
+        codeReader.decodeOnceFromVideoDevice(undefined, video)
+            .then(result => {
+                const now = Date.now();
+                if (result.text !== lastCode || now - lastTime > 2000) {
+                    resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + result.barcodeFormat + ')';
+                    lastCode = result.text;
+                    lastTime = now;
                 }
+                setTimeout(scanLoop, 1000); // relance après 1s
+            })
+            .catch(err => {
                 if (err && !(err instanceof ZXing.NotFoundException)) {
                     resultDiv.textContent = 'Erreur : ' + err;
                 }
-            }
-        );
+                setTimeout(scanLoop, 1000); // relance même en cas d'erreur
+            });
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        startContinuousScan();
+        resultDiv.textContent = '';
+        codeReader = new ZXing.BrowserBarcodeReader();
+        running = true;
+        scanLoop();
     });
     </script>
 </body>
