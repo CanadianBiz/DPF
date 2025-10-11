@@ -6,7 +6,7 @@
     <title>Scanner de Code-Barres</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }
-        #video { width: 320px; height: 240px; border: 1px solid #ccc; }
+    #video { width: 720px; height: 405px; border: 1px solid #ccc; }
         #result { margin-top: 20px; font-size: 1.2em; color: green; }
         #start-btn { margin-top: 20px; padding: 10px 20px; font-size: 1em; }
     </style>
@@ -20,18 +20,25 @@
     const video = document.getElementById('video');
     const resultDiv = document.getElementById('result');
     let codeReader;
+    let scanning = true;
+
+    function startContinuousScan() {
+        resultDiv.textContent = '';
+        codeReader = new ZXing.BrowserMultiFormatContinuousReader();
+        codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
+            if (result && scanning) {
+                resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + result.barcodeFormat + ')';
+                scanning = false;
+                setTimeout(() => { scanning = true; resultDiv.textContent = ''; }, 2000); // relance après 2s
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                resultDiv.textContent = 'Erreur : ' + err;
+            }
+        });
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
-        resultDiv.textContent = '';
-        codeReader = new ZXing.BrowserBarcodeReader();
-        codeReader.decodeOnceFromVideoDevice(undefined, video)
-            .then(result => {
-                resultDiv.textContent = 'Code-barres détecté : ' + result.text;
-                codeReader.reset();
-            })
-            .catch(err => {
-                resultDiv.textContent = 'Erreur : ' + err;
-            });
+        startContinuousScan();
     });
     </script>
 </body>
