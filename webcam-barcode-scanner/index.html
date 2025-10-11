@@ -18,6 +18,27 @@
         <button id="start-btn">Démarrer le scan</button>
     </div>
     <div id="result"></div>
-    <script type="module" src="zxing.js"></script>
+    <script type="module">
+    import { BrowserBarcodeReader } from 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.1/esm/index.min.js';
+
+    const video = document.getElementById('video');
+    const resultDiv = document.getElementById('result');
+    const startBtn = document.getElementById('start-btn');
+    let codeReader;
+
+    startBtn.addEventListener('click', async () => {
+        resultDiv.textContent = '';
+        if (!codeReader) {
+            codeReader = new BrowserBarcodeReader();
+        }
+        try {
+            const result = await codeReader.decodeOnceFromVideoDevice(undefined, video);
+            resultDiv.textContent = 'Code-barres détecté : ' + result.text;
+            codeReader.reset();
+        } catch (err) {
+            resultDiv.textContent = 'Erreur : ' + err;
+        }
+    });
+    </script>
 </body>
 </html>
