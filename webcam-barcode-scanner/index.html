@@ -40,8 +40,10 @@
         }
     }
 
+
     window.addEventListener('DOMContentLoaded', () => {
-        codeReader = new ZXing.BrowserBarcodeReader();
+        // Limite la détection au format CODE_128 uniquement
+        codeReader = new ZXing.BrowserBarcodeReader([ZXing.BarcodeFormat.CODE_128]);
         scanOnce();
     });
 
