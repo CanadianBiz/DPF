@@ -20,6 +20,7 @@
     <div id="result"></div>
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"></script>
     <script>
+    const PROXY_URL = ''; // <-- Mettez ici l'URL de votre Cloudflare Worker si déployé, ex: 'https://my-worker.example.workers.dev'
     const video = document.getElementById('video');
     const resultDiv = document.getElementById('result');
     const rescanBtn = document.getElementById('rescan-btn');
@@ -31,6 +32,10 @@
         try {
             const result = await codeReader.decodeOnceFromVideoDevice(undefined, video);
             resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + result.barcodeFormat + ')';
+            // Si c'est un lien itac.pro on tente d'extraire les champs via le proxy
+            if (typeof result.text === 'string' && result.text.startsWith('https://itac.pro/F.aspx')) {
+                handleItacUrl(result.text);
+            }
             rescanBtn.style.display = 'inline-block';
         } catch (err) {
             if (err && !(err instanceof ZXing.NotFoundException)) {
@@ -40,10 +45,41 @@
         }
     }
 
+    async function handleItacUrl(url) {
+        if (!PROXY_URL) {
+            // Pas de proxy : on ouvre simplement l'URL dans un nouvel onglet
+            window.open(url, '_blank');
+            return;
+        }
+        resultDiv.textContent = 'Récupération des données...';
+        try {
+            const resp = await fetch(PROXY_URL + '?url=' + encodeURIComponent(url));
+            if (!resp.ok) throw new Error('Erreur proxy: ' + resp.status);
+            const data = await resp.json();
+            // Affiche les champs extraits, sinon ouvre la page
+            if (data.license || data.lastName || data.firstName) {
+                resultDiv.innerHTML = '';
+                if (data.license) resultDiv.innerHTML += '<div><strong>Licence:</strong> ' + data.license + '</div>';
+                if (data.lastName) resultDiv.innerHTML += '<div><strong>Nom:</strong> ' + data.lastName + '</div>';
+                if (data.firstName) resultDiv.innerHTML += '<div><strong>Prénom:</strong> ' + data.firstName + '</div>';
+            } else {
+                // fallback : ouvrir la page si extraction non concluante
+                window.open(url, '_blank');
+            }
+        } catch (e) {
+            console.error(e);
+            resultDiv.textContent = 'Impossible de récupérer les données : ' + e.message;
+            // propose d'ouvrir la page
+            const a = document.createElement('a');
+            a.href = url; a.textContent = 'Ouvrir la fiche'; a.target = '_blank';
+            resultDiv.appendChild(document.createElement('div')).appendChild(a);
+        }
+    }
+
 
     window.addEventListener('DOMContentLoaded', () => {
-        // Limite la détection au format CODE_128 uniquement
-        codeReader = new ZXing.BrowserBarcodeReader([ZXing.BarcodeFormat.CODE_128]);
+    // Limite la détection au format QR_CODE uniquement
+    codeReader = new ZXing.BrowserBarcodeReader([ZXing.BarcodeFormat.QR_CODE]);
         scanOnce();
     });
 
