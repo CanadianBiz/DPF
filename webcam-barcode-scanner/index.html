@@ -31,10 +31,20 @@
         rescanBtn.style.display = 'none';
         try {
             const result = await codeReader.decodeOnceFromVideoDevice(undefined, video);
-            resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + result.barcodeFormat + ')';
-            // Si c'est un lien itac.pro on tente d'extraire les champs via le proxy
-            if (typeof result.text === 'string' && result.text.startsWith('https://itac.pro/F.aspx')) {
-                handleItacUrl(result.text);
+            console.log('ZXing result object:', result);
+            // format peut être dans plusieurs propriétés selon la version UMD
+            const format = (result && (result.format || result.barcodeFormat || (result.getBarcodeFormat && result.getBarcodeFormat()))) || 'unknown';
+            resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + format + ')';
+            // Si le texte du QR est une URL, on la gère (itac.pro), sinon on affiche simplement le texte
+            if (typeof result.text === 'string' && (result.text.startsWith('http://') || result.text.startsWith('https://'))) {
+                if (result.text.includes('itac.pro/F.aspx')) {
+                    handleItacUrl(result.text);
+                } else {
+                    // URL mais pas itac.pro : proposer d'ouvrir
+                    const a = document.createElement('a');
+                    a.href = result.text; a.textContent = 'Ouvrir l\'URL'; a.target = '_blank';
+                    resultDiv.appendChild(document.createElement('div')).appendChild(a);
+                }
             }
             rescanBtn.style.display = 'inline-block';
         } catch (err) {
