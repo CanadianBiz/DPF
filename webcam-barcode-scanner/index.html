@@ -32,17 +32,50 @@
         try {
             const result = await codeReader.decodeOnceFromVideoDevice(undefined, video);
             console.log('ZXing result object:', result);
-            // format peut être dans plusieurs propriétés selon la version UMD
-            const format = (result && (result.format || result.barcodeFormat || (result.getBarcodeFormat && result.getBarcodeFormat()))) || 'unknown';
-            resultDiv.textContent = 'Code détecté : ' + result.text + ' (' + format + ')';
+            // Affiche aussi l'objet complet dans la page pour debug
+            try {
+                const pre = document.createElement('pre');
+                pre.style.textAlign = 'left';
+                pre.style.display = 'inline-block';
+                pre.style.marginTop = '10px';
+                pre.textContent = JSON.stringify(result, Object.getOwnPropertyNames(result), 2);
+                // retire l'ancien pre si présent
+                const old = document.querySelector('#result pre');
+                if (old) old.remove();
+                resultDiv.appendChild(pre);
+            } catch (e) {
+                console.warn('Impossible d'afficher le result object en JSON', e);
+            }
+            // fallback pour le texte scanné (selon versions ZXing)
+            const text = (result && (result.text || result.rawValue || (result.getText && result.getText()) || (result.toString && result.toString()))) || '';
+
+            // format peut être retourné sous forme numérique; on essaie de trouver le nom lisible
+            function getFormatName(fmt) {
+                if (!fmt) return 'unknown';
+                if (typeof fmt === 'number' && ZXing && ZXing.BarcodeFormat) {
+                    for (const k in ZXing.BarcodeFormat) {
+                        if (ZXing.BarcodeFormat[k] === fmt) return k;
+                    }
+                }
+                return String(fmt);
+            }
+
+            const rawFormat = (result && (result.format || result.barcodeFormat || (result.getBarcodeFormat && result.getBarcodeFormat()))) || 'unknown';
+            const formatName = getFormatName(rawFormat);
+            resultDiv.insertAdjacentHTML('afterbegin', 'Code détecté : ' + text + ' (' + formatName + ')<br>');
+
+            // Si le QR contient uniquement des chiffres, on l'affiche comme possible numéro de licence
+            if (/^[0-9]+$/.test(text)) {
+                resultDiv.insertAdjacentHTML('beforeend', '<div>Remarque : le QR contient uniquement un numéro — il peut s\'agir d\'un numéro de licence.</div>');
+            }
             // Si le texte du QR est une URL, on la gère (itac.pro), sinon on affiche simplement le texte
-            if (typeof result.text === 'string' && (result.text.startsWith('http://') || result.text.startsWith('https://'))) {
-                if (result.text.includes('itac.pro/F.aspx')) {
-                    handleItacUrl(result.text);
+            if (typeof text === 'string' && (text.startsWith('http://') || text.startsWith('https://'))) {
+                if (text.includes('itac.pro/F.aspx')) {
+                    handleItacUrl(text);
                 } else {
                     // URL mais pas itac.pro : proposer d'ouvrir
                     const a = document.createElement('a');
-                    a.href = result.text; a.textContent = 'Ouvrir l\'URL'; a.target = '_blank';
+                    a.href = text; a.textContent = 'Ouvrir l\'URL'; a.target = '_blank';
                     resultDiv.appendChild(document.createElement('div')).appendChild(a);
                 }
             }
